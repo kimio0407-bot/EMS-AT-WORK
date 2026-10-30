@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨緊急評估小助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-size: 18px; line-height: 1.6; }
+        input, select, textarea, button { font-size: 18px !important; }
+        .tab-btn.active { border-bottom: 4px solid #2563eb; color: #2563eb; font-weight: bold; background-color: #eff6ff; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 pb-20">
+
+    <!-- 頂部危急警示列 -->
+    <div class="sticky top-0 z-50 bg-red-600 text-white px-4 py-3 shadow-lg flex items-center justify-between">
+        <div class="flex items-center space-x-2 pr-2">
+            <span class="text-2xl">⚠️</span>
+            <p class="text-base sm:text-lg font-bold leading-tight">
+                若有急性意識改變、呼吸困難、持續胸痛、大量出血，請勿等待判讀，應立即撥打 119！
+            </p>
+        </div>
+        <a href="tel:119" target="_self" class="bg-white text-red-600 font-extrabold px-4 py-2 rounded-lg text-lg flex items-center shrink-0 shadow active:scale-95">
+            📞 直撥 119
+        </a>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="max-w-xl mx-auto p-3 sm:p-4">
+
+        <!-- 119 報案開口提詞卡 (頂部) -->
+        <div class="mb-5 p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-md">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-amber-200">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📲</span>
+                    <h2 class="font-black text-amber-900 text-xl tracking-tight">報案不慌不卡卡</h2>
+                </div>
+                <div class="flex space-x-1.5 text-sm font-bold">
+                    <button onclick="setRelation('家人')" id="rel-family" class="rel-btn px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm">家人</button>
+                    <button onclick="setRelation('朋友')" id="rel-friend" class="rel-btn px-3 py-1 rounded-lg bg-amber-200 text-amber-800">朋友</button>
+                </div>
+            </div>
+
+            <!-- 緊急狀態切換按鈕 -->
+            <div class="flex space-x-2 mb-3">
+                <button onclick="setEmergencyMode(false)" id="mode-normal" class="flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-amber-600 text-white shadow">嚴重不適</button>
+                <button onclick="setEmergencyMode(true)" id="mode-extreme" class="flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-red-100 text-red-700 border border-red-300">非常緊急</button>
+            </div>
+
+            <p id="script-prompt" class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed">
+                “你好，我<span id="script-rel" class="text-red-600 font-black">家人</span>現在 <mark class="bg-yellow-200 px-1 rounded">[描述目前狀況/症狀]</mark>，需要救護人員來現場處理或評估，地址是：<mark class="bg-yellow-200 px-1 rounded">[報出縣市、路段號碼或顯目地標]</mark>。”
+            </p>
+        </div>
+
+        <!-- 頁籤導覽 -->
+        <div class="flex border-b border-slate-300 bg-white rounded-t-2xl overflow-hidden shadow-sm mb-4">
+            <button id="tab-vitals" onclick="switchTab('vitals')" class="tab-btn active flex-1 py-3.5 text-center text-sm sm:text-base font-bold tracking-wide">📋 生命徵象</button>
+            <button id="tab-fast" onclick="switchTab('fast')" class="tab-btn flex-1 py-3.5 text-center text-sm sm:text-base font-bold tracking-wide">🧠 中風評估</button>
+            <button id="tab-gcs" onclick="switchTab('gcs')" class="tab-btn flex-1 py-3.5 text-center text-sm sm:text-base font-bold tracking-wide">👤 意識評估</button>
+        </div>
+
+        <!-- 1. 生命徵象模組 -->
+        <div id="sec-vitals" class="space-y-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm space-y-5 border border-slate-200">
+                
+                <!-- 1. 意識 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>1. 意識狀態</span>
+                    </label>
+                    <select id="v-consciousness" class="w-full p-3 border border-slate-300 rounded-xl bg-white mb-2 shadow-sm">
+                        <option value="清醒">清醒 (對答如流/動作正常)</option>
+                        <option value="嗜睡/叫得醒">嗜睡 (叫了會醒，停止叫喚又睡著)</option>
+                        <option value="對聲音有反應">昏迷 (對叫喚有反應但無法清醒)</option>
+                        <option value="對疼痛有反應">昏迷 (捏了才會動/哼聲)</option>
+                        <option value="無反應">完全無反應 (叫/捏皆無反應)</option>
+                    </select>
+                    <label class="flex items-center space-x-2 text-red-600 font-bold mt-2 cursor-pointer">
+                        <input type="checkbox" id="v-altered" class="w-5 h-5 shrink-0 rounded text-red-600">
+                        <span class="text-lg font-bold">感覺和平常不太一樣 <span class="text-sm font-normal text-red-500">（與平常不同）</span></span>
+                    </label>
+                </div>
+
+                <!-- 2. 呼吸 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>2. 呼吸速率</span>
+                    </label>
+                    <div class="relative flex items-center mb-2">
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-rr" placeholder="如：18" class="w-full p-3 pr-16 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                        <span class="absolute right-3 text-slate-400 font-medium text-sm pointer-events-none">次/分</span>
+                    </div>
+                    <select id="v-resp-pattern" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                        <option value="平穩">呼吸平穩正常</option>
+                        <option value="呼吸急促">呼吸急促/費力</option>
+                        <option value="喘/有雜音">氣喘吁吁/有喘鳴聲</option>
+                        <option value="瀕死呼吸/不規則">瀕死呼吸/極度微弱/不規則</option>
+                    </select>
+                </div>
+
+                <!-- 3. 脈搏 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>3. 脈搏心跳</span>
+                    </label>
+                    <div class="relative flex items-center mb-2">
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-hr" placeholder="如：75" class="w-full p-3 pr-14 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                        <span class="absolute right-3 text-slate-400 font-medium text-sm pointer-events-none">bpm</span>
+                    </div>
+                    <select id="v-pulse-site" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                        <option value="手腕橈動脈 (摸得到)">手腕橈動脈 (摸得到)</option>
+                        <option value="頸動脈 (摸得到)">頸動脈 (摸得到)</option>
+                        <option value="感覺摸不太到">感覺摸不太到</option>
+                    </select>
+                </div>
+
+                <!-- 4. 血壓 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>4. 血壓</span>
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <div class="relative flex-1 flex items-center">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-sbp" placeholder="如：120" class="w-full p-3 pr-16 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                            <span class="absolute right-3 text-slate-400 font-medium text-xs pointer-events-none">收縮壓</span>
+                        </div>
+                        <span class="font-bold text-slate-400 text-xl">/</span>
+                        <div class="relative flex-1 flex items-center">
+                            <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-dbp" placeholder="如：80" class="w-full p-3 pr-16 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                            <span class="absolute right-3 text-slate-400 font-medium text-xs pointer-events-none">舒張壓</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. 體溫與皮膚 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>5. 體溫與皮膚狀況</span>
+                    </label>
+                    <div class="relative flex items-center mb-2">
+                        <input type="number" inputmode="decimal" step="0.1" id="v-temp" placeholder="如：37.5" class="w-full p-3 pr-12 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                        <span class="absolute right-3 text-slate-400 font-medium text-sm pointer-events-none">°C</span>
+                    </div>
+                    <select id="v-skin" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                        <option value="正常紅潤溫暖">正常紅潤溫暖</option>
+                        <option value="冒冷汗/蒼白">冒冷汗 / 臉色蒼白</option>
+                        <option value="發紺/嘴唇發紫">發紺 / 嘴唇手指發紫</option>
+                        <option value="皮膚潮紅發熱">皮膚潮紅發熱</option>
+                    </select>
+                </div>
+
+                <!-- 6. 血氧 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>6. 血氧濃度 SpO2</span>
+                    </label>
+                    <div class="relative flex items-center mb-2">
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-spo2" placeholder="如：98" class="w-full p-3 pr-10 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                        <span class="absolute right-3 text-slate-400 font-medium text-sm pointer-events-none">%</span>
+                    </div>
+                    <label class="flex items-center space-x-2 text-slate-700 font-bold cursor-pointer">
+                        <input type="checkbox" id="v-o2-use" class="w-5 h-5 rounded text-blue-600">
+                        <span>平常有在使用居家氧氣設備</span>
+                    </label>
+                </div>
+
+                <!-- 7. 血糖 -->
+                <div class="border-b border-slate-100 pb-4">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>7. 血糖值</span>
+                    </label>
+                    <div class="relative flex items-center mb-2">
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" id="v-bs" placeholder="如：110" class="w-full p-3 pr-20 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition shadow-sm">
+                        <span class="absolute right-3 text-slate-400 font-medium text-sm pointer-events-none">mg/dL</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="v-meal-time" class="text-sm font-bold text-slate-600 shrink-0">上一餐用餐時間：</label>
+                        <input type="time" id="v-meal-time" class="flex-1 p-2.5 border border-slate-300 rounded-xl bg-white text-slate-700 shadow-sm">
+                    </div>
+                </div>
+
+                <!-- 8. 過去病史與藥物 -->
+                <div>
+                    <label class="font-black text-slate-900 text-xl tracking-tight block mb-2 flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        <span>8. 過去病史與目前用藥</span>
+                    </label>
+                    <textarea id="v-history" rows="2" placeholder="如：高血壓、糖尿病、抗凝血劑、阿斯匹靈..." class="w-full p-3 border border-slate-300 rounded-xl shadow-sm"></textarea>
+                </div>
+
+                <!-- 按鈕區 -->
+                <div class="pt-2 flex space-x-2">
+                    <button onclick="generateSummary()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-md active:scale-95 text-center text-lg">
+                        ✏️ 產生並複製醫護摘要
+                    </button>
+                    <button onclick="clearVitals()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-5 py-3.5 rounded-xl active:scale-95 text-lg">
+                        清除
+                    </button>
+                </div>
+
+                <!-- 摘要輸出區 -->
+                <div id="summary-box" class="hidden mt-4 p-5 bg-slate-50 border-2 border-blue-400 rounded-2xl relative space-y-4 shadow-sm">
+                    <h3 class="font-black text-blue-900 text-xl mb-2 flex items-center space-x-2">
+                        <span>📋</span>
+                        <span>生命徵象紀錄與就醫摘要</span>
+                    </h3>
+                    <div class="inline-flex items-center space-x-2 bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold px-3.5 py-2 rounded-xl text-sm sm:text-base shadow-sm">
+                        <span class="text-emerald-500 text-xs">●</span>
+                        <span>已複製文字！可直接貼上 Line 或提供給救護人員。</span>
+                    </div>
+                    <pre id="summary-text" class="whitespace-pre-wrap text-sm text-slate-800 bg-white p-4 rounded-xl border border-slate-200 font-mono shadow-inner"></pre>
+
+                    <!-- 重複一份的題詞卡於摘要下方 -->
+                    <div class="mt-5 p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-md">
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-amber-200">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-2xl">📲</span>
+                                <h2 class="font-black text-amber-900 text-xl tracking-tight">報案不慌不卡卡</h2>
+                            </div>
+                            <div class="flex space-x-1.5 text-sm font-bold">
+                                <button onclick="setRelation('家人')" id="rel-family-bottom" class="rel-btn-b px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm">家人</button>
+                                <button onclick="setRelation('朋友')" id="rel-friend-bottom" class="rel-btn-b px-3 py-1 rounded-lg bg-amber-200 text-amber-800">朋友</button>
+                            </div>
+                        </div>
+
+                        <!-- 緊急狀態切換按鈕 -->
+                        <div class="flex space-x-2 mb-3">
+                            <button onclick="setEmergencyMode(false)" id="mode-normal-bottom" class="flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-amber-600 text-white shadow">嚴重不適</button>
+                            <button onclick="setEmergencyMode(true)" id="mode-extreme-bottom" class="flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-red-100 text-red-700 border border-red-300">非常緊急</button>
+                        </div>
+
+                        <p id="script-prompt-bottom" class="text-base sm:text-lg font-bold text-slate-900 leading-relaxed">
+                            “你好，我<span id="script-rel-bottom" class="text-red-600 font-black">家人</span>現在 <mark class="bg-yellow-200 px-1 rounded">[描述目前狀況/症狀]</mark>，需要救護人員來現場處理或評估，地址是：<mark class="bg-yellow-200 px-1 rounded">[報出縣市、路段號碼或顯目地標]</mark>。”
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 2. FAST 中風快速評估模組 -->
+        <div id="sec-fast" class="hidden space-y-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm space-y-5 border border-slate-200">
+                <h3 class="text-2xl font-black text-red-600 flex items-center space-x-2 tracking-tight">
+                    <span>🧠</span>
+                    <span>FAST 中風快速辨識</span>
+                </h3>
+                
+                <div class="p-4 bg-red-50 border border-red-200 rounded-xl space-y-4 shadow-sm">
+                    <label class="flex items-start space-x-3 cursor-pointer">
+                        <input type="checkbox" id="fast-f" onchange="checkFastAlert()" class="w-6 h-6 mt-1 text-red-600 rounded">
+                        <div>
+                            <span class="font-black text-xl text-red-900 tracking-tight">F - Face (臉部歪斜)</span>
+                            <p class="text-sm sm:text-base text-slate-700 mt-0.5">請患者微笑或露齒，觀察嘴角是否不對稱歪斜。</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start space-x-3 cursor-pointer border-t border-red-200 pt-4">
+                        <input type="checkbox" id="fast-a" onchange="checkFastAlert()" class="w-6 h-6 mt-1 text-red-600 rounded">
+                        <div>
+                            <span class="font-black text-xl text-red-900 tracking-tight">A - Arm (單側無力)</span>
+                            <p class="text-sm sm:text-base text-slate-700 mt-0.5">請患者閉上眼睛，雙手平舉向前 10 秒，觀察是否有單側下垂無力。</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start space-x-3 cursor-pointer border-t border-red-200 pt-4">
+                        <input type="checkbox" id="fast-s" onchange="checkFastAlert()" class="w-6 h-6 mt-1 text-red-600 rounded">
+                        <div>
+                            <span class="font-black text-xl text-red-900 tracking-tight">S - Speech (言語不清)</span>
+                            <p class="text-sm sm:text-base text-slate-700 mt-0.5">請患者完整講一句話，觀察是否說話含糊不清、無法表達。</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <label class="font-black text-slate-900 text-xl tracking-tight block">T - Time 最後正常時間</label>
+                    <p class="text-sm sm:text-base font-bold text-amber-700">💡 請努力試著回想</p>
+                    <input type="datetime-local" id="fast-t" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm mt-1">
+                    
+                    <!-- 動態警語顯示區 -->
+                    <div id="fast-alert-box" class="mt-3">
+                        <p id="fast-alert-text" class="text-base sm:text-lg font-extrabold leading-snug hidden"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. GCS 昏迷指數模組 -->
+        <div id="sec-gcs" class="hidden space-y-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm space-y-5 border border-slate-200">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">👤 GCS 昏迷指數評估（親民版）</h3>
+                    <div class="bg-blue-100 text-blue-900 px-3.5 py-1.5 rounded-full font-black text-lg sm:text-xl shadow-sm shrink-0">
+                        總分：<span id="gcs-score">15</span> 分
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="font-black text-slate-800 text-lg block mb-1.5">E (Eye) 睜眼反應</label>
+                        <select id="gcs-e" onchange="calcGCS()" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                            <option value="4">4分 - 自動睜眼</option>
+                            <option value="3">3分 - 呼喚會睜眼</option>
+                            <option value="2">2分 - 捏捏/疼痛會睜眼</option>
+                            <option value="1">1分 - 完全無反應</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="font-black text-slate-800 text-lg block mb-1.5">V (Verbal) 語言反應</label>
+                        <select id="gcs-v" onchange="calcGCS()" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                            <option value="5">5分 - 對答完整正確</option>
+                            <option value="4">4分 - 話語混亂/語無倫次</option>
+                            <option value="3">3分 - 僅能說出單字或詞彙</option>
+                            <option value="2">2分 - 僅發出不成文聲音(哼哼聲)</option>
+                            <option value="1">1分 - 完全無發聲</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="font-black text-slate-800 text-lg block mb-1.5">M (Motor) 運動反應</label>
+                        <select id="gcs-m" onchange="calcGCS()" class="w-full p-3 border border-slate-300 rounded-xl bg-white shadow-sm">
+                            <option value="6">6分 - 能照指令動作</option>
+                            <option value="5">5分 - 疼痛時手會定位或移除刺激</option>
+                            <option value="4">4分 - 疼痛時肢體縮回躲避</option>
+                            <option value="1">1分 - 完全無反應</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentRelation = '家人';
+        let isEmergencyMode = false;
+
+        function setRelation(rel) {
+            currentRelation = rel;
+            document.getElementById('script-rel').innerText = rel;
+            document.getElementById('script-rel-bottom').innerText = rel;
+
+            const isFam = (rel === '家人');
+            document.getElementById('rel-family').className = isFam ? 'rel-btn px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm' : 'rel-btn px-3 py-1 rounded-lg bg-amber-200 text-amber-800';
+            document.getElementById('rel-friend').className = !isFam ? 'rel-btn px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm' : 'rel-btn px-3 py-1 rounded-lg bg-amber-200 text-amber-800';
+            
+            document.getElementById('rel-family-bottom').className = isFam ? 'rel-btn-b px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm' : 'rel-btn-b px-3 py-1 rounded-lg bg-amber-200 text-amber-800';
+            document.getElementById('rel-friend-bottom').className = !isFam ? 'rel-btn-b px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm' : 'rel-btn-b px-3 py-1 rounded-lg bg-amber-200 text-amber-800';
+
+            updateScriptText();
+        }
+
+        function setEmergencyMode(isExtreme) {
+            isEmergencyMode = isExtreme;
+            const btnNormal = document.getElementById('mode-normal');
+            const btnExtreme = document.getElementById('mode-extreme');
+            const btnNormalB = document.getElementById('mode-normal-bottom');
+            const btnExtremeB = document.getElementById('mode-extreme-bottom');
+
+            if (isExtreme) {
+                const activeCls = 'flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-red-600 text-white shadow';
+                const inactiveCls = 'flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-amber-100 text-amber-800 border border-amber-300';
+                
+                btnExtreme.className = activeCls;
+                btnNormal.className = inactiveCls;
+                if(btnExtremeB) btnExtremeB.className = activeCls;
+                if(btnNormalB) btnNormalB.className = inactiveCls;
+            } else {
+                const activeCls = 'flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-amber-600 text-white shadow';
+                const inactiveCls = 'flex-1 py-2 px-3 text-sm sm:text-base rounded-xl font-bold bg-red-100 text-red-700 border border-red-300';
+
+                btnNormal.className = activeCls;
+                btnExtreme.className = inactiveCls;
+                if(btnNormalB) btnNormalB.className = activeCls;
+                if(btnExtremeB) btnExtremeB.className = inactiveCls;
+            }
+            updateScriptText();
+        }
+
+        function updateScriptText() {
+            const topPrompt = document.getElementById('script-prompt');
+            const bottomPrompt = document.getElementById('script-prompt-bottom');
+            
+            let htmlContent = '';
+            if (isEmergencyMode) {
+                htmlContent = `“你好，我<span class="text-red-600 font-black">${currentRelation}</span>現在倒下無呼吸/突然昏厥，需要救護車，地址是：<mark class="bg-yellow-200 px-1 rounded">[報出縣市、路段號碼或顯目地標]</mark>。”`;
+            } else {
+                htmlContent = `“你好，我<span class="text-red-600 font-black">${currentRelation}</span>現在 <mark class="bg-yellow-200 px-1 rounded">[描述目前狀況/症狀]</mark>，需要救護人員來現場處理或評估，地址是：<mark class="bg-yellow-200 px-1 rounded">[報出縣市、路段號碼或顯目地標]</mark>。”`;
+            }
+
+            if(topPrompt) topPrompt.innerHTML = htmlContent;
+            if(bottomPrompt) bottomPrompt.innerHTML = htmlContent;
+        }
+
+        function switchTab(tabName) {
+            ['vitals', 'fast', 'gcs'].forEach(t => {
+                document.getElementById('sec-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('active');
+            });
+            document.getElementById('sec-' + tabName).classList.remove('hidden');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        function checkFastAlert() {
+            const f = document.getElementById('fast-f').checked;
+            const a = document.getElementById('fast-a').checked;
+            const s = document.getElementById('fast-s').checked;
+            const count = (f ? 1 : 0) + (a ? 1 : 0) + (s ? 1 : 0);
+
+            const alertText = document.getElementById('fast-alert-text');
+
+            if (count === 3) {
+                alertText.className = "text-base sm:text-lg text-red-600 font-extrabold mt-2 leading-snug block animate-pulse";
+                alertText.innerText = "※ 記下最後正常時間極度重要！若有上述三項皆符合，請立即撥打 119！";
+            } else if (count > 0) {
+                alertText.className = "text-base sm:text-lg text-amber-700 font-extrabold mt-2 leading-snug block";
+                alertText.innerText = "※ 若持續或反覆出現徵兆，也建議就醫";
+            } else {
+                alertText.className = "text-base sm:text-lg font-extrabold mt-2 leading-snug hidden";
+                alertText.innerText = "";
+            }
+        }
+
+        function calcGCS() {
+            const e = parseInt(document.getElementById('gcs-e').value);
+            const v = parseInt(document.getElementById('gcs-v').value);
+            const m = parseInt(document.getElementById('gcs-m').value);
+            document.getElementById('gcs-score').innerText = e + v + m;
+        }
+
+        function copyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+
+        function generateSummary() {
+            const consciousness = document.getElementById('v-consciousness').value;
+            const altered = document.getElementById('v-altered').checked ? ' （與平常不同）' : '';
+            const rr = document.getElementById('v-rr').value;
+            const respPattern = document.getElementById('v-resp-pattern').value;
+            const hr = document.getElementById('v-hr').value;
+            const pulseSite = document.getElementById('v-pulse-site').value;
+            const sbp = document.getElementById('v-sbp').value;
+            const dbp = document.getElementById('v-dbp').value;
+            const temp = document.getElementById('v-temp').value;
+            const skin = document.getElementById('v-skin').value;
+            const spo2 = document.getElementById('v-spo2').value;
+            const o2Use = document.getElementById('v-o2-use').checked ? ' (有使用居家氧氣)' : '';
+            const bs = document.getElementById('v-bs').value;
+            const mealTime = document.getElementById('v-meal-time').value;
+            const history = document.getElementById('v-history').value.trim();
+
+            let summary = `【緊急生命徵象觀察摘要】\n`;
+            summary += `• 意識狀況：${consciousness}${altered}\n`;
+            summary += `• 呼吸：${rr ? rr + ' 次/分 (' + respPattern + ')' : respPattern}\n`;
+            summary += `• 脈搏：${hr ? hr + ' bpm (' + pulseSite + ')' : pulseSite}\n`;
+            if (sbp || dbp) summary += `• 血壓：${sbp || '--'}/${dbp || '--'} mmHg\n`;
+            if (temp) summary += `• 體溫：${temp}°C\n`;
+            summary += `• 皮膚：${skin}\n`;
+            if (spo2) summary += `• 血氧：${spo2}%${o2Use}\n`;
+            if (bs) summary += `• 血糖值：${bs} mg/dL${mealTime ? ' (上一餐時間: ' + mealTime + ')' : ''}\n`;
+            summary += `• 病史與用藥：${history ? history : '無紀錄/未填寫'}\n`;
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            let timePeriod = '凌晨';
+            if (hours >= 6 && hours < 11) timePeriod = '早上';
+            else if (hours >= 11 && hours < 13) timePeriod = '中午';
+            else if (hours >= 13 && hours < 18) timePeriod = '下午';
+            else if (hours >= 18 && hours < 23) timePeriod = '晚上';
+            else if (hours >= 23 || hours < 6) timePeriod = '凌晨/深夜';
+
+            const displayHours = String(hours % 12 || 12).padStart(2, '0');
+            const timeStr = `${year}/${month}/${day} ${timePeriod}${displayHours}:${minutes}`;
+
+            summary += `• 記錄時間：${timeStr}`;
+
+            document.getElementById('summary-text').innerText = summary;
+            document.getElementById('summary-box').classList.remove('hidden');
+
+            copyTextToClipboard(summary);
+        }
+
+        function clearVitals() {
+            document.getElementById('v-consciousness').selectedIndex = 0;
+            document.getElementById('v-altered').checked = false;
+            document.getElementById('v-rr').value = '';
+            document.getElementById('v-resp-pattern').selectedIndex = 0;
+            document.getElementById('v-hr').value = '';
+            document.getElementById('v-pulse-site').selectedIndex = 0;
+            document.getElementById('v-sbp').value = '';
+            document.getElementById('v-dbp').value = '';
+            document.getElementById('v-temp').value = '';
+            document.getElementById('v-skin').selectedIndex = 0;
+            document.getElementById('v-spo2').value = '';
+            document.getElementById('v-o2-use').checked = false;
+            document.getElementById('v-bs').value = '';
+            document.getElementById('v-meal-time').value = '';
+            document.getElementById('v-history').value = '';
+            document.getElementById('summary-box').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
